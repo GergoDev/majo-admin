@@ -1,75 +1,37 @@
 const axios = require('axios')
-const videoDataFrames = require('./db').db().collection('videoDataFrames')
-const youtubeChannels = require('./db').db().collection('youtubeChannels')
+const youtubeChannels = require('./db').db().collection('channels')
 const videos = require('./db').db().collection('videos')
-const schedule = require('node-schedule')
 const dotenv = require('dotenv')
 dotenv.config()
 
-
-videoId = "WxAPsQ7TUaQ"
-
-function videoStatRequest(videoId) {
+function channelDataRequest(channelId, byId) {
   return new Promise((resolve, reject) => {
-    axios.get('https://www.googleapis.com/youtube/v3/videos', {
-        params: {
-          part: "statistics",
-          id: videoId,
-          key: process.env.YOUTUBEAPIKEY
-        }
+
+    let params
+
+    if(byId) {
+      params = {
+        part: "snippet",
+        id: channelId,
+        key: process.env.YOUTUBEAPIKEY
+      }
+    } else {
+      params = {
+        part: "snippet",
+        forUsername: channelId,
+        key: process.env.YOUTUBEAPIKEY
+      }
+    }
+
+    axios.get('https://www.googleapis.com/youtube/v3/channels', {
+        params
     }).then(function(response) {
-        resolve(response.data.items[0].statistics)
+        resolve(response.data)
     }).catch(function (error) {
         reject(error)
     })  
   })
 }
-
-// var j = schedule.scheduleJob('*/5 * * * * *', async function(){
-
-//   const {viewCount, likeCount, dislikeCount, commentCount} = await videoStatRequest(videoId)
-
-//   videoDataFrames.insertOne({
-//     videoId, 
-//     channelId: "channelId", 
-//     dataFrameDate: new Date(), 
-//     viewCount, 
-//     likeCount, 
-//     dislikeCount, 
-//     commentCount
-//   }, () => console.log("Insert done, Ready"))
-
-// })
-
-// function channelDataRequest(channelId) {
-//   return new Promise((resolve, reject) => {
-//     axios.get('https://www.googleapis.com/youtube/v3/channels', {
-//         params: {
-//           part: "snippet",
-//           id: channelId,
-//           key: process.env.YOUTUBEAPIKEY
-//         }
-//     }).then(function(response) {
-//         resolve(response.data.items[0].snippet)
-//     }).catch(function (error) {
-//         reject(error)
-//     })  
-//   })
-// }
-
-// channelId = "UCVoGCDIv8h3OkzZYySWK6lw"
-
-// channelDataRequest(channelId).then((response) => {
-
-//   youtubeChannels.insertOne({
-//     channelId,
-//     channelName: response.title,
-//     joinedDate: response.publishedAt,
-//     addedDate: new Date(),
-//     profilePic: response.thumbnails.medium.url
-//   }, () => console.log("Insert done, Ready"))
-
-// })
 
 function channelVideosRequest(channelId, fromDate) {
   return new Promise((resolve, reject) => {
@@ -90,7 +52,7 @@ function channelVideosRequest(channelId, fromDate) {
   })
 }
 
-async function addingChannelVideos(channelId, fromDate) {
+async function addingChannelVideos(channelId, fromDate, channelName) {
   let {items: channelVideos} = await channelVideosRequest(channelId, fromDate)
 
   let videosToDatabase = channelVideos
@@ -108,14 +70,82 @@ async function addingChannelVideos(channelId, fromDate) {
       )
   })
 
-  console.log(videosToDatabase)
-  // await videos.insertMany(videosToDatabase)
-  //   .then(() => console.log(`${new Date()} - ${videosToDatabase.length} videos added`))
-  //   .catch(error => console.log(error))
+  let insertResult = await videos.insertMany(videosToDatabase)
+  console.log(channelName, insertResult.insertedCount, "videos added")
+  insertResult.ops.forEach( addedVideo => console.log("   ", addedVideo.videoName) )
+
 }
 
-channelId = "UCzGOSLOfec9FpSfBuJGwWkg"
-let currentDate = new Date()
-let twoMonthsBefore = currentDate.getTime() - (60*24*60*60*1000)
-let videosFrom = new Date(twoMonthsBefore)
-addingChannelVideos(channelId, '2020-03-08T12:58:02.000Z')
+async function addingChannels(channelList) {
+  // Request channel data depending on identifier
+  let channelsDataPromises = channelList.map( function(channelUrl) {
+    if(channelUrl.indexOf("user/") != -1) {
+      channelId = channelUrl.split("user/")[1]
+      return channelDataRequest(channelId, false)
+    }
+
+    if(channelUrl.indexOf("channel/") != -1) {
+      channelId = channelUrl.split("channel/")[1]
+      return channelDataRequest(channelId, true)
+    }
+  })
+
+  let channelsData = await Promise.all(channelsDataPromises)
+
+  // Refactor data the way I want to store them
+  let channelsDataToDatabase = channelsData.map( channelData => {
+    return (
+      {
+        channelId: channelData.items[0].id,
+        channelName: channelData.items[0].snippet.title,
+        profilePic: channelData.items[0].snippet.thumbnails.medium.url,
+        joinedDate: channelData.items[0].snippet.publishedAt,
+        addedDate: new Date()
+      }
+    )
+  })
+
+  // Check if the channels already exist in database and take out existed ones.
+  let channelIds = channelsDataToDatabase.map( c => c.channelId)
+  let existedChannels = await youtubeChannels.find({ channelId: { $in: channelIds }}).toArray()
+  channelsDataToDatabase = channelsDataToDatabase.filter( channel => !existedChannels.find( existedChannel => existedChannel.channelId === channel.channelId))
+  
+  if(existedChannels.length > 0) {
+    console.log("This channel(s) already exist(s):")
+    existedChannels.forEach( channel => console.log("  ", channel.channelName) )
+  }
+
+  if(channelsDataToDatabase.length != 0) {
+    let insertResult = await youtubeChannels.insertMany(channelsDataToDatabase)
+    console.log(insertResult.insertedCount, "channels added.")
+    insertResult.ops.forEach( addedChannel => console.log("   ", addedChannel.channelName) )
+    return channelsDataToDatabase
+  } else {
+    console.log("There is no added channels.")
+    return null
+  }
+}
+
+channelsToAdd = [
+  "https://www.youtube.com/user/VideomaniaFCS",
+  "https://www.youtube.com/channel/UCUMZ7gohGI9HcU9VNsr2FJQ",
+  "https://www.youtube.com/channel/UCGoLa-QhHmTxLEdjv_8dxrg",
+  "https://www.youtube.com/user/FlandyMusic",
+  "https://www.youtube.com/channel/UCrcfRtdHb11YJEloTSaOYvw",
+  "https://www.youtube.com/channel/UCYenDLnIHsoqQ6smwKXQ7Hg",
+  "https://www.youtube.com/user/mattybikesguitars"
+]
+
+addingChannels(channelsToAdd).then( channelsAdded => {
+  
+  if(channelsAdded) {
+    let currentDate = new Date()
+    let twoMonthsBefore = currentDate.getTime() - (60*24*60*60*1000)
+    let videosFrom = new Date(twoMonthsBefore)
+
+    let addingVideosPromises = channelsAdded.map( channel => addingChannelVideos(channel.channelId, videosFrom, channel.channelName) )
+
+    Promise.all(addingVideosPromises)
+  }  
+
+})
