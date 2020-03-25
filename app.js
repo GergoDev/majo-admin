@@ -1,9 +1,9 @@
 const axios = require('axios')
-const youtubeChannels = require('./db').db().collection('channels')
+const channels = require('./db').db().collection('channels')
 const videos = require('./db').db().collection('videos')
 const dotenv = require('dotenv')
 dotenv.config()
-/*
+
 function channelDataRequest(channelId, byId) {
   return new Promise((resolve, reject) => {
 
@@ -33,46 +33,49 @@ function channelDataRequest(channelId, byId) {
   })
 }
 
-function channelVideosRequest(channelId, fromDate) {
+function channelActivityRequest(channelId, fromDate) {
   return new Promise((resolve, reject) => {
-    axios.get('https://www.googleapis.com/youtube/v3/search', {
+    axios.get('https://www.googleapis.com/youtube/v3/activities', {
       params: {
-        part: "snippet",
+        part: "snippet,contentDetails",
         channelId: channelId,
         publishedAfter: fromDate,
-        maxResults: 50,
-        order: "date",
+        maxResults:50,
         key: process.env.YOUTUBEAPIKEY
       }
     }).then(function (response) {
       resolve(response.data)
     }).catch(function (error) {
-      console.log("Error during channelVideosRequest ", error)
+      console.log("!!!Error during channelActivityRequest!!!")
     })
   })
 }
 
 async function addingChannelVideos(channelId, fromDate, channelName) {
-  let { items: channelVideos } = await channelVideosRequest(channelId, fromDate)
+  let { items: channelVideos } = await channelActivityRequest(channelId, fromDate)
 
   let videosToDatabase = channelVideos
-    .filter(v => v.id.videoId && (new Date(v.snippet.publishedAt).getTime() !== new Date(fromDate).getTime()))
+    .filter(v => (v.snippet.type === 'upload') && v.contentDetails.upload.videoId && (new Date(v.snippet.publishedAt).getTime() !== new Date(fromDate).getTime()))
     .map(video => {
       return (
         {
-          videoId: video.id.videoId,
+          videoId: video.contentDetails.upload.videoId,
           channelId: video.snippet.channelId,
           videoName: video.snippet.title,
-          coverPic: video.snippet.thumbnails.high.url,
-          releaseDate: video.snippet.publishedAt,
+          coverPic: video.snippet.thumbnails.maxres.url,
+          category: "N/A",
+          status: "on",
+          releaseDate: new Date(video.snippet.publishedAt),
           addedDate: new Date()
         }
       )
     })
 
-  let insertResult = await videos.insertMany(videosToDatabase)
-  console.log(channelName, insertResult.insertedCount, "videos added")
-  insertResult.ops.forEach(addedVideo => console.log("   ", addedVideo.videoName))
+  if(videosToDatabase.length != 0) {
+    let insertResult = await videos.insertMany(videosToDatabase)
+    console.log(channelName, insertResult.insertedCount, "videos added")
+    insertResult.ops.forEach(addedVideo => console.log("   ", addedVideo.videoName))
+  }
 
 }
 
@@ -99,7 +102,9 @@ async function addingChannels(channelList) {
         channelId: channelData.items[0].id,
         channelName: channelData.items[0].snippet.title,
         profilePic: channelData.items[0].snippet.thumbnails.medium.url,
-        joinedDate: channelData.items[0].snippet.publishedAt,
+        category: "N/A",
+        status: "on",
+        joinedDate: new Date(channelData.items[0].snippet.publishedAt),
         addedDate: new Date()
       }
     )
@@ -107,7 +112,7 @@ async function addingChannels(channelList) {
 
   // Check if the channels already exist in database and take out existed ones.
   let channelIds = channelsDataToDatabase.map(c => c.channelId)
-  let existedChannels = await youtubeChannels.find({ channelId: { $in: channelIds } }).toArray()
+  let existedChannels = await channels.find({ channelId: { $in: channelIds } }).toArray()
   channelsDataToDatabase = channelsDataToDatabase.filter(channel => !existedChannels.find(existedChannel => existedChannel.channelId === channel.channelId))
 
   if (existedChannels.length > 0) {
@@ -116,7 +121,7 @@ async function addingChannels(channelList) {
   }
 
   if (channelsDataToDatabase.length != 0) {
-    let insertResult = await youtubeChannels.insertMany(channelsDataToDatabase)
+    let insertResult = await channels.insertMany(channelsDataToDatabase)
     console.log(insertResult.insertedCount, "channels added.")
     insertResult.ops.forEach(addedChannel => console.log("   ", addedChannel.channelName))
     return channelsDataToDatabase
@@ -148,25 +153,4 @@ addingChannels(channelsToAdd).then(channelsAdded => {
     Promise.all(addingVideosPromises)
   }
 
-})*/
-
-// *********************************************************************
-
-function channelActivityRequest(channelId, fromDate) {
-  return new Promise((resolve, reject) => {
-    axios.get('https://www.googleapis.com/youtube/v3/activities', {
-      params: {
-        part: "snippet",
-        channelId: channelId,
-        maxResults: 50,
-        key: process.env.YOUTUBEAPIKEY
-      }
-    }).then(function (response) {
-      resolve(response.data)
-    }).catch(function (error) {
-      console.log("Error during channelVideosRequest ", error)
-    })
-  })
-}
-
-channelActivityRequest("UCiGm_E4ZwYSHV3bcW1pnSeQ").then((res) => res.items.map(item => console.log(item.snippet.title)))
+})
