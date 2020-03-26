@@ -110,8 +110,11 @@ async function addingChannels(channelList) {
     )
   })
 
-  // Check if the channels already exist in database and take out existed ones.
+  // Check for duplications in channel list
   let channelIds = channelsDataToDatabase.map(c => c.channelId)
+  channelsDataToDatabase = channelsDataToDatabase.filter( (channel, index) => channelIds.indexOf(channel.channelId) == index )
+
+  // Check if the channels already exist in database and take out existed ones.
   let existedChannels = await channels.find({ channelId: { $in: channelIds } }).toArray()
   channelsDataToDatabase = channelsDataToDatabase.filter(channel => !existedChannels.find(existedChannel => existedChannel.channelId === channel.channelId))
 
@@ -136,21 +139,27 @@ channelsToAdd = [
   "https://www.youtube.com/channel/UCUMZ7gohGI9HcU9VNsr2FJQ",
   "https://www.youtube.com/channel/UCGoLa-QhHmTxLEdjv_8dxrg",
   "https://www.youtube.com/user/FlandyMusic",
+  "https://www.youtube.com/channel/UCeAB8_SpJPf-xLP4VqHk6TQ",
   "https://www.youtube.com/channel/UCrcfRtdHb11YJEloTSaOYvw",
   "https://www.youtube.com/channel/UCYenDLnIHsoqQ6smwKXQ7Hg",
-  "https://www.youtube.com/user/mattybikesguitars"
+  "https://www.youtube.com/user/mattybikesguitars",
+  "https://www.youtube.com/user/Handras",
+  "https://www.youtube.com/user/mattybikesguitars",
+  "https://www.youtube.com/user/Handras"
 ]
 
-addingChannels(channelsToAdd).then(channelsAdded => {
+// addingChannels(channelsToAdd).then(channelsAdded => {
 
-  if (channelsAdded) {
-    let currentDate = new Date()
-    let twoMonthsBefore = currentDate.getTime() - (60 * 24 * 60 * 60 * 1000)
-    let videosFrom = new Date(twoMonthsBefore)
+//   if (channelsAdded) {
+//     let currentDate = new Date()
+//     let twoMonthsBefore = currentDate.getTime() - (60 * 24 * 60 * 60 * 1000)
+//     let videosFrom = new Date(twoMonthsBefore)
 
-    let addingVideosPromises = channelsAdded.map(channel => addingChannelVideos(channel.channelId, videosFrom, channel.channelName))
+//     let addingVideosPromises = channelsAdded.map(channel => addingChannelVideos(channel.channelId, videosFrom, channel.channelName))
 
-    Promise.all(addingVideosPromises)
-  }
+//     Promise.all(addingVideosPromises)
+//   }
 
-})
+// })
+
+addingChannels(channelsToAdd)
