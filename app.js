@@ -62,7 +62,7 @@ async function addingChannelVideos(channelId, fromDate, channelName) {
           videoId: video.contentDetails.upload.videoId,
           channelId: video.snippet.channelId,
           videoName: video.snippet.title,
-          coverPic: video.snippet.thumbnails.maxres.url,
+          coverPic: video.snippet.thumbnails.high.url,
           category: "N/A",
           status: "on",
           releaseDate: new Date(video.snippet.publishedAt),
@@ -75,6 +75,8 @@ async function addingChannelVideos(channelId, fromDate, channelName) {
     let insertResult = await videos.insertMany(videosToDatabase)
     console.log(channelName, insertResult.insertedCount, "videos added")
     insertResult.ops.forEach(addedVideo => console.log("   ", addedVideo.videoName))
+  } else {
+    console.log(channelName, 0, "videos added")
   }
 
 }
@@ -110,7 +112,7 @@ async function addingChannels(channelList) {
     )
   })
 
-  // Check for duplications in channel list
+  // Check for duplications in channel list and take out duplicated ones.
   let channelIds = channelsDataToDatabase.map(c => c.channelId)
   channelsDataToDatabase = channelsDataToDatabase.filter( (channel, index) => channelIds.indexOf(channel.channelId) == index )
 
@@ -135,31 +137,41 @@ async function addingChannels(channelList) {
 }
 
 channelsToAdd = [
-  "https://www.youtube.com/user/VideomaniaFCS",
-  "https://www.youtube.com/channel/UCUMZ7gohGI9HcU9VNsr2FJQ",
   "https://www.youtube.com/channel/UCGoLa-QhHmTxLEdjv_8dxrg",
-  "https://www.youtube.com/user/FlandyMusic",
+  "https://www.youtube.com/channel/UC6Cvo-tOSuHGlILWlnBL2vA",
   "https://www.youtube.com/channel/UCeAB8_SpJPf-xLP4VqHk6TQ",
-  "https://www.youtube.com/channel/UCrcfRtdHb11YJEloTSaOYvw",
-  "https://www.youtube.com/channel/UCYenDLnIHsoqQ6smwKXQ7Hg",
-  "https://www.youtube.com/user/mattybikesguitars",
-  "https://www.youtube.com/user/Handras",
-  "https://www.youtube.com/user/mattybikesguitars",
-  "https://www.youtube.com/user/Handras"
+  "https://www.youtube.com/channel/UCKLkW1hXwv9603DsBw-s_vA",
+  "https://www.youtube.com/channel/UCr8KinYuK1P903mOG_1qujg", 
+  "https://www.youtube.com/channel/UC59r0LCCC1aoqNisdj-RE1w", 
+  "https://www.youtube.com/channel/UC5Q1f1LK263xioqRjXEY8Lg" , 
+  "https://www.youtube.com/channel/UC_qjsyBmS4sViRMMERAxl2g", 
+  "https://www.youtube.com/channel/UCE7oC2iKBoXEoN2K96cjXyg", 
+  "https://www.youtube.com/channel/UCbgbVUSZ2I6fAAHiWxfZoOQ", 
+  "https://www.youtube.com/channel/UC7LxLbV1DLE2gSuVDfDOsIA", 
+  "https://www.youtube.com/channel/UC4omgFhwkAKzdrYH2dyJNvQ", 
+  "https://www.youtube.com/channel/UC_fwxj011v4ZCDKcV8U4rTw", 
+  "https://www.youtube.com/channel/UCgP9ETA61mi7UwMbbkVsCSQ", 
+  "https://www.youtube.com/channel/UCXpszjVK17Wf7jf4zLz5Nnw", 
+  "https://www.youtube.com/channel/UC2I3zxy4XGqSDkJfQI0whyQ", 
+  "https://www.youtube.com/channel/UCoXnnnrdhaKljuhA2IrIhVQ", 
+  "https://www.youtube.com/channel/UCrFqWhglNIdjciMNNB9IW5w", 
+  "https://www.youtube.com/channel/UCEz9c3Qv7mnZcjP4s2_WpMw", 
+  "https://www.youtube.com/channel/UCDobqE_rsI0Xq2cg-Sy6CWg", 
+  "https://www.youtube.com/channel/UCMEMunO_gYjW7FQhgAiHRhw", 
+  "https://www.youtube.com/channel/UCipg-1LCecIfx8RfWnafG4Q", 
+  "https://www.youtube.com/channel/UCRJovKcgUL7QumDE1YsLqzg"
 ]
 
-// addingChannels(channelsToAdd).then(channelsAdded => {
+addingChannels(channelsToAdd).then(channelsAdded => {
 
-//   if (channelsAdded) {
-//     let currentDate = new Date()
-//     let twoMonthsBefore = currentDate.getTime() - (60 * 24 * 60 * 60 * 1000)
-//     let videosFrom = new Date(twoMonthsBefore)
+  if (channelsAdded) {
+    let currentDate = new Date()
+    let twoMonthsBefore = currentDate.getTime() - (60 * 24 * 60 * 60 * 1000)
+    let videosFrom = new Date(twoMonthsBefore)
 
-//     let addingVideosPromises = channelsAdded.map(channel => addingChannelVideos(channel.channelId, videosFrom, channel.channelName))
+    let addingVideosPromises = channelsAdded.map(channel => addingChannelVideos(channel.channelId, videosFrom, channel.channelName))
 
-//     Promise.all(addingVideosPromises)
-//   }
+    Promise.all(addingVideosPromises)
+  }
 
-// })
-
-addingChannels(channelsToAdd)
+})
