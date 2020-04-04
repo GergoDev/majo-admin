@@ -4,6 +4,52 @@ const videos = require('./db').db().collection('videos')
 const dotenv = require('dotenv')
 dotenv.config()
 
+async function videosWithDataFrames(props) {
+  return new Promise( (resolve, reject) => {
+
+    videos.aggregate([
+      { $match: 
+          {
+              $and: [
+                  { status: 'on' },
+                  { releaseDate: { $gt: props.videosFrom,$lt: props.videosTo }}
+              ]
+          }
+      },
+      { $lookup: 
+          {
+              from: "videoDataFrames",
+              let: { videoId: "$videoId"},
+              pipeline: [
+                   { $match:
+                       { $expr:
+                           { $and:
+                               [
+                                  { $eq: ["$videoId", "$$videoId" ] },
+                                  { $gte: ["$dataFrameDate", props.dataFramesFrom ] },
+                                  { $lte: ["$dataFrameDate", props.dataFramesTo ] }
+                               ]
+                           }
+                       }
+                   },
+                   { $sort: { dataFrameDate: 1 } }
+               ],
+               as: "videoDataFrames"
+          }
+      },
+      {$lookup: 
+          {
+              from: "channels",
+              localField: "channelId",
+              foreignField: "channelId",
+              as: "channelInfo"
+          }
+      }
+    ]).toArray( (err, res) => resolve(res) )
+
+  })
+}
+
 function channelDataRequest(channelId, byId) {
   return new Promise((resolve, reject) => {
 
@@ -136,6 +182,70 @@ async function addingChannels(channelList) {
   }
 }
 
+async function dataFramesToJSON(props) {
+
+  let { videosFromPreviousTime, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
+  let videosFrom = new Date(dataFramesFrom.getTime() - videosFromPreviousTime)
+  let videosTo = dataFramesTo
+  let videosFromMongo = await videosWithDataFrames({ videosFrom, videosTo, dataFramesFrom, dataFramesTo })
+
+  function n(n){
+    return n > 9 ? "" + n: "0" + n;
+  }
+
+  function tillMinutesMillisecs(date) {
+    return new Date(`${date.getFullYear()}-${n(date.getMonth()+1)}-${n(date.getDate())}T${n(date.getHours())}:${n(date.getMinutes())}:00.000Z`).getTime()
+  }
+
+  let framesForVideosCalculated = videosFromMongo.map( video => {
+
+    if(video.videoDataFrames.length != 0) {
+
+        let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
+        let framesProcessed = {}
+        let firstViewCount = 0
+        let firstViewFound = false
+
+        for(let x = 0; x <= frameCountCalculated; x++) {
+
+          let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
+          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
+          let videoDataFrame = video.videoDataFrames.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
+          let releaseDateMatch = tillMinutesMillisecs(video.releaseDate) == tillMinutesMillisecs(actualFrameDate)
+
+          if(videoDataFrame || releaseDateMatch) {
+            if(firstViewFound) {
+              framesProcessed[frameDateStyled] = videoDataFrame.viewCount - firstViewCount
+            } else {
+              framesProcessed[frameDateStyled] = 0
+              firstViewCount = (releaseDateMatch) ? 0 : videoDataFrame.viewCount
+              firstViewFound = true
+            }
+          } else {
+            framesProcessed[frameDateStyled] = ""
+          }
+        }
+
+        let videoName = video.channelInfo[0].channelName + ": " + video.videoName
+        let videoModifier = modify.find( modifyElement => modifyElement.videoId == video.videoId)
+        let toModify = (videoModifier) ? videoModifier.toModify : {}
+        if(toModify.VideoName && toModify.VideoName.length > 50) {
+          toModify.VideoName = toModify.VideoName.slice(0, 50)+"..."
+        }
+
+        return {
+          VideoName: (videoName.length > 50) ? videoName.slice(0, 50)+"..." : videoName,
+          VideoId: video.videoId, 
+          Thumbnail: video.coverPic, 
+          ...framesProcessed,
+          ...toModify
+        }
+    }
+  })
+  
+  return framesForVideosCalculated.filter( f => f && !f.Remove )
+}
+
 channelsToAdd = [
   "https://www.youtube.com/channel/UCGoLa-QhHmTxLEdjv_8dxrg",
   "https://www.youtube.com/channel/UC6Cvo-tOSuHGlILWlnBL2vA",
@@ -159,19 +269,40 @@ channelsToAdd = [
   "https://www.youtube.com/channel/UCDobqE_rsI0Xq2cg-Sy6CWg", 
   "https://www.youtube.com/channel/UCMEMunO_gYjW7FQhgAiHRhw", 
   "https://www.youtube.com/channel/UCipg-1LCecIfx8RfWnafG4Q", 
-  "https://www.youtube.com/channel/UCRJovKcgUL7QumDE1YsLqzg"
+  "https://www.youtube.com/channel/UCRJovKcgUL7QumDE1YsLqzg",
+  "https://www.youtube.com/channel/UCVoGCDIv8h3OkzZYySWK6lw"
 ]
 
-addingChannels(channelsToAdd).then(channelsAdded => {
+// addingChannels(channelsToAdd).then(channelsAdded => {
 
-  if (channelsAdded) {
-    let currentDate = new Date()
-    let twoMonthsBefore = currentDate.getTime() - (60 * 24 * 60 * 60 * 1000)
-    let videosFrom = new Date(twoMonthsBefore)
+//   if (channelsAdded) {
+//     let currentDate = new Date()
+//     let twoMonthsBefore = currentDate.getTime() - (60 * 24 * 60 * 60 * 1000)
+//     let videosFrom = new Date(twoMonthsBefore)
 
-    let addingVideosPromises = channelsAdded.map(channel => addingChannelVideos(channel.channelId, videosFrom, channel.channelName))
+//     let addingVideosPromises = channelsAdded.map(channel => addingChannelVideos(channel.channelId, videosFrom, channel.channelName))
 
-    Promise.all(addingVideosPromises)
-  }
+//     Promise.all(addingVideosPromises)
+//   }
 
-})
+// })
+
+// To modify a video frames output, create a modify object with the fields that you want to modify.
+// {
+//   videoId: "AzLij636Mss",
+//   toModify: {
+//     VideoName: "foo",
+//     Thumbnail: "http://image.com/image.png",
+//     Remove: true
+//   }
+// }
+
+dataFramesToJSON({
+  videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
+  dataFramesFrom: new Date("2020-03-29T19:00:00.000Z"),
+  dataFramesTo: new Date("2020-03-29T21:31:00.000Z"),
+  frameDistance: 10 * 60 * 1000,
+  modify: [
+    
+  ]
+}).then( res => console.log(res))
