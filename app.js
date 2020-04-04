@@ -182,7 +182,7 @@ async function addingChannels(channelList) {
   }
 }
 
-async function dataFramesToJSON(props) {
+async function dataFramesProcessor(props) {
 
   let { videosFromPreviousTime, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
   let videosFrom = new Date(dataFramesFrom.getTime() - videosFromPreviousTime)
@@ -297,7 +297,7 @@ channelsToAdd = [
 //   }
 // }
 
-dataFramesToJSON({
+dataFramesProcessor({
   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
   dataFramesFrom: new Date("2020-03-29T19:00:00.000Z"),
   dataFramesTo: new Date("2020-03-29T21:31:00.000Z"),
