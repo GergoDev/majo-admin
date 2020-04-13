@@ -57,7 +57,7 @@ async function channelsWithDataFrames(props) {
         {
             $and: [
                 { status: 'on' },
-                { addedDate: { $lt: props.channelsFrom }}
+                { addedDate: { $lt: props.dataFramesFrom }}
             ]
         }
     },
@@ -241,7 +241,8 @@ async function videoIncreaseProcessor(props) {
         for(let x = 0; x <= frameCountCalculated; x++) {
 
           let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
+          let days = ["Va.", "Hé.", "Ke.", "Sze.", "Csü.", "Pé.", "Szo."]
+          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
           let videoDataFrame = video.videoDataFrames.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
           let releaseDateMatch = tillMinutesMillisecs(video.releaseDate) == tillMinutesMillisecs(actualFrameDate)
 
@@ -259,14 +260,15 @@ async function videoIncreaseProcessor(props) {
         }
 
         let videoName = video.channelInfo[0].channelName + ": " + video.videoName
+        let videoNameMaxLength = 80
         let videoModifier = modify.find( modifyElement => modifyElement.videoId == video.videoId)
         let toModify = (videoModifier) ? videoModifier.toModify : {}
-        if(toModify.VideoName && toModify.VideoName.length > 50) {
-          toModify.VideoName = toModify.VideoName.slice(0, 50)+"..."
+        if(toModify.VideoName && toModify.VideoName.length > videoNameMaxLength) {
+          toModify.VideoName = toModify.VideoName.slice(0, videoNameMaxLength)+"..."
         }
 
         return {
-          VideoName: (videoName.length > 50) ? videoName.slice(0, 50)+"..." : videoName,
+          VideoName: (videoName.length > videoNameMaxLength) ? videoName.slice(0, videoNameMaxLength)+"..." : videoName,
           VideoId: video.videoId, 
           Thumbnail: video.coverPic, 
           ...framesProcessed,
@@ -285,6 +287,75 @@ async function videoDataFramesProcessing(props) {
   let videosFromMongo = await videosWithDataFrames({ videosFrom, videosTo, dataFramesFrom, dataFramesTo })
   
   return await videoIncreaseProcessor({ videosFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify })
+}
+
+async function channelIncreaseProcessor(props) {
+
+  let { channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props  
+
+  function n(n){
+    return n > 9 ? "" + n: "0" + n;
+  }
+
+  function tillMinutesMillisecs(date) {
+    return new Date(`${date.getFullYear()}-${n(date.getMonth()+1)}-${n(date.getDate())}T${n(date.getHours())}:${n(date.getMinutes())}:00.000Z`).getTime()
+  }
+
+  let framesForChannelsCalculated = channelsFromMongo.map( channel => {
+
+    if(channel.dataFrames.length != 0) {
+
+        let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
+        let framesProcessed = {}
+        let firstValueCount = 0
+        let firstValueFound = false
+
+        for(let x = 0; x <= frameCountCalculated; x++) {
+
+          let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
+          let days = ["Va.", "Hé.", "Ke.", "Sze.", "Csü.", "Pé.", "Szo."]
+          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
+          let channelDataFrame = channel.dataFrames.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
+
+          if(channelDataFrame) {
+            if(firstValueFound) {
+              framesProcessed[frameDateStyled] = channelDataFrame[indicator] - firstValueCount
+            } else {
+              framesProcessed[frameDateStyled] = 0
+              firstValueCount = channelDataFrame[indicator]
+              firstValueFound = true
+            }
+          } else {
+            framesProcessed[frameDateStyled] = ""
+          }
+        }
+
+        let channelName = channel.channelName
+        let channelNameMaxLength = 30
+        let channelModifier = modify.find( modifyElement => modifyElement.channelId == channel.channelId)
+        let toModify = (channelModifier) ? channelModifier.toModify : {}
+        if(toModify.ChannelName && toModify.ChannelName.length > channelNameMaxLength) {
+          toModify.ChannelName = toModify.ChannelName.slice(0, channelNameMaxLength)+"..."
+        }
+
+        return {
+          ChannelName: (channelName.length > channelNameMaxLength) ? channelName.slice(0, channelNameMaxLength)+"..." : channelName,
+          ChannelId: channel.channelId, 
+          ProfilePic: channel.profilePic, 
+          ...framesProcessed,
+          ...toModify
+        }
+    }
+  })
+  
+  return framesForChannelsCalculated.filter( f => f && !f.Remove )
+}
+
+async function channelDataFramesProcessing(props) {
+  let { indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
+  let channelsFromMongo = await channelsWithDataFrames({ dataFramesFrom, dataFramesTo})
+
+  return await channelIncreaseProcessor({ channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify })
 }
 
 channelsToAdd = [
@@ -340,7 +411,7 @@ channelsToAdd = [
 // }
 // indicator could be: viewCount, likeCount, dislikeCount, commentCount
 videoDataFramesProcessing({
-  indicator: "dislikeCount",
+  indicator: "viewCount",
   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
   dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"),
   dataFramesTo: new Date("2020-04-12T00:01:00.000+0100"),
@@ -349,79 +420,12 @@ videoDataFramesProcessing({
     
   ]
 }).then( res => {
-  let fileName = "ddd-" + new Date() + ".json"
-  fs.writeFile("framesProcessed/videoDataFrames" + fileName, JSON.stringify(res), err => {
+  let fileName = "increaseVideo.json"
+  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
     if(err) throw err
     console.log(fileName + ", Saved!")
   })
 })
-
-async function channelIncreaseProcessor(props) {
-
-  let { channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props  
-
-  function n(n){
-    return n > 9 ? "" + n: "0" + n;
-  }
-
-  function tillMinutesMillisecs(date) {
-    return new Date(`${date.getFullYear()}-${n(date.getMonth()+1)}-${n(date.getDate())}T${n(date.getHours())}:${n(date.getMinutes())}:00.000Z`).getTime()
-  }
-
-  let framesForChannelsCalculated = channelsFromMongo.map( channel => {
-
-    if(channel.dataFrames.length != 0) {
-
-        let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
-        let framesProcessed = {}
-        let firstValueCount = 0
-        let firstValueFound = false
-
-        for(let x = 0; x <= frameCountCalculated; x++) {
-
-          let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
-          let channelDataFrame = channel.dataFrames.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
-
-          if(channelDataFrame) {
-            if(firstValueFound) {
-              framesProcessed[frameDateStyled] = channelDataFrame[indicator] - firstValueCount
-            } else {
-              framesProcessed[frameDateStyled] = 0
-              firstValueCount = channelDataFrame[indicator]
-              firstValueFound = true
-            }
-          } else {
-            framesProcessed[frameDateStyled] = ""
-          }
-        }
-
-        let channelName = channel.channelName
-        let channelModifier = modify.find( modifyElement => modifyElement.channelId == channel.channelId)
-        let toModify = (channelModifier) ? channelModifier.toModify : {}
-        if(toModify.ChannelName && toModify.ChannelName.length > 50) {
-          toModify.ChannelName = toModify.ChannelName.slice(0, 50)+"..."
-        }
-
-        return {
-          ChannelName: (channelName.length > 50) ? channelName.slice(0, 50)+"..." : channelName,
-          ChannelId: channel.channelId, 
-          ProfilePic: channel.profilePic, 
-          ...framesProcessed,
-          ...toModify
-        }
-    }
-  })
-  
-  return framesForChannelsCalculated.filter( f => f && !f.Remove )
-}
-
-async function channelDataFramesProcessing(props) {
-  let { indicator, channelsFrom, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
-  let channelsFromMongo = await channelsWithDataFrames({ channelsFrom, dataFramesFrom, dataFramesTo})
-
-  return await channelIncreaseProcessor({ channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify })
-}
 
 // ************************************************************************************************
 // To modify a video frames output, create a modify object with the fields that you want to modify.
@@ -433,19 +437,18 @@ async function channelDataFramesProcessing(props) {
 //     Remove: true
 //   }
 // }
-// channelDataFramesProcessing({
-//   indicator: "viewCount",
-//   channelsFrom: new Date("2020-04-06T00:00:00.000+0100"),
-//   dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"), 
-//   dataFramesTo: new Date("2020-04-12T00:01:00.000+0100"), 
-//   frameDistance: 60 * 60 * 1000,
-//   modify: [
+channelDataFramesProcessing({
+  indicator: "viewCount",
+  dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"), 
+  dataFramesTo: new Date("2020-04-12T00:01:00.000+0100"), 
+  frameDistance: 60 * 60 * 1000,
+  modify: [
     
-//   ]
-// }).then( res => {
-//   let fileName = "-" + new Date() + ".json"
-//   fs.writeFile("framesProcessed/channelDataFrames/" + fileName, JSON.stringify(res), err => {
-//     if(err) throw err
-//     console.log(fileName + ", Saved!")
-//   })  
-// })
+  ]
+}).then( res => {
+  let fileName = "increaseChannel.json"
+  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
+    if(err) throw err
+    console.log(fileName + ", Saved!")
+  })  
+})
