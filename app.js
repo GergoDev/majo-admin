@@ -231,12 +231,13 @@ async function videoIncreaseProcessor(props) {
 
   let { videosFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props  
 
-  function n(n){
-    return n > 9 ? "" + n: "0" + n;
-  }
+  let n = n => n > 9 ? "" + n : "0" + n
 
-  function tillMinutesMillisecs(date) {
-    return new Date(`${date.getFullYear()}-${n(date.getMonth()+1)}-${n(date.getDate())}T${n(date.getHours())}:${n(date.getMinutes())}:00.000Z`).getTime()
+  function tillHoursMillisecs(date) {
+    date = new Date(date.setMinutes(00))
+    date = new Date(date.setSeconds(00))
+    date = new Date(date.setMilliseconds(000))
+    return date.getTime()
   }
 
   let framesForVideosCalculated = videosFromMongo.map( video => {
@@ -253,8 +254,8 @@ async function videoIncreaseProcessor(props) {
           let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
           let days = ["Va.", "Hé.", "Ke.", "Sze.", "Csü.", "Pé.", "Szo."]
           let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
-          let videoDataFrame = video.videoDataFrames.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
-          let releaseDateMatch = tillMinutesMillisecs(video.releaseDate) == tillMinutesMillisecs(actualFrameDate)
+          let videoDataFrame = video.videoDataFrames.find( frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
+          let releaseDateMatch = tillHoursMillisecs(video.releaseDate) == tillHoursMillisecs(actualFrameDate)
 
           if(videoDataFrame || releaseDateMatch) {
             if(firstValueFound) {
@@ -270,7 +271,7 @@ async function videoIncreaseProcessor(props) {
         }
 
         let videoName = video.channelInfo[0].channelName + ": " + video.videoName
-        let videoNameMaxLength = 80
+        let videoNameMaxLength = 40
         let videoModifier = modify.find( modifyElement => modifyElement.videoId == video.videoId)
         let toModify = (videoModifier) ? videoModifier.toModify : {}
         if(toModify.VideoName && toModify.VideoName.length > videoNameMaxLength) {
@@ -303,12 +304,13 @@ async function channelIncreaseProcessor(props) {
 
   let { channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props  
 
-  function n(n){
-    return n > 9 ? "" + n: "0" + n;
-  }
+  let n = n => n > 9 ? "" + n : "0" + n
 
-  function tillMinutesMillisecs(date) {
-    return new Date(`${date.getFullYear()}-${n(date.getMonth()+1)}-${n(date.getDate())}T${n(date.getHours())}:${n(date.getMinutes())}:00.000Z`).getTime()
+  function tillHoursMillisecs(date) {
+    date = new Date(date.setMinutes(00))
+    date = new Date(date.setSeconds(00))
+    date = new Date(date.setMilliseconds(000))
+    return date.getTime()
   }
 
   let framesForChannelsCalculated = channelsFromMongo.map( channel => {
@@ -325,7 +327,7 @@ async function channelIncreaseProcessor(props) {
           let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
           let days = ["Va.", "Hé.", "Ke.", "Sze.", "Csü.", "Pé.", "Szo."]
           let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
-          let channelDataFrame = channel.dataFrames.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
+          let channelDataFrame = channel.dataFrames.find( frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
 
           if(channelDataFrame) {
             if(firstValueFound) {
@@ -490,10 +492,10 @@ channelsToAdd = [
 // }
 // indicator could be: viewCount, likeCount, dislikeCount, commentCount
 // videoDataFramesProcessing({
-//   indicator: "viewCount",
+//   indicator: "likeCount",
 //   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
 //   dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"),
-//   dataFramesTo: new Date("2020-04-12T00:01:00.000+0100"),
+//   dataFramesTo: new Date("2020-04-14T16:00:30.000+0100"),
 //   frameDistance: 60 * 60 * 1000,
 //   modify: [
     
@@ -516,33 +518,34 @@ channelsToAdd = [
 //     Remove: true
 //   }
 // }
-// channelDataFramesProcessing({
-//   indicator: "viewCount",
-//   dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"), 
-//   dataFramesTo: new Date("2020-04-12T00:01:00.000+0100"), 
-//   frameDistance: 60 * 60 * 1000,
-//   modify: [
+// indicator could be: viewCount, subscribersCount, videoCount
+channelDataFramesProcessing({
+  indicator: "viewCount",
+  dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"), 
+  dataFramesTo: new Date("2020-04-14T16:00:30.000+0100"), 
+  frameDistance: 60 * 60 * 1000,
+  modify: [
     
-//   ]
-// }).then( res => {
-//   let fileName = "increaseChannel.json"
-//   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
-//     if(err) throw err
-//     console.log(fileName + ", Saved!")
-//   })  
-// })
-
-// ************************************************************************************************
-trendingDataFramesProcessing(
-  {
-    dataFramesFrom: new Date("2020-04-08T00:00:00.000+0100"),
-    dataFramesTo: new Date("2020-04-14T11:31:00.000+0100"),
-    frameDistance: 30 * 60 * 1000
-  }
-).then( res => {
-  let fileName = "trendingVideos.json"
+  ]
+}).then( res => {
+  let fileName = "increaseChannel.json"
   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
     if(err) throw err
     console.log(fileName + ", Saved!")
-  })
+  })  
 })
+
+// ************************************************************************************************
+// trendingDataFramesProcessing(
+//   {
+//     dataFramesFrom: new Date("2020-04-08T00:00:00.000+0100"),
+//     dataFramesTo: new Date("2020-04-14T11:31:00.000+0100"),
+//     frameDistance: 30 * 60 * 1000
+//   }
+// ).then( res => {
+//   let fileName = "trendingVideos.json"
+//   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
+//     if(err) throw err
+//     console.log(fileName + ", Saved!")
+//   })
+// })
