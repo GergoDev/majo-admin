@@ -252,7 +252,7 @@ async function videoIncreaseProcessor(props) {
         for(let x = 0; x <= frameCountCalculated; x++) {
 
           let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let days = ["Va.", "Hé.", "Ke.", "Sze.", "Csü.", "Pé.", "Szo."]
+          let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
           let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
           let videoDataFrame = video.videoDataFrames.find( frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
           let releaseDateMatch = tillHoursMillisecs(video.releaseDate) == tillHoursMillisecs(actualFrameDate)
@@ -325,7 +325,7 @@ async function channelIncreaseProcessor(props) {
         for(let x = 0; x <= frameCountCalculated; x++) {
 
           let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let days = ["Va.", "Hé.", "Ke.", "Sze.", "Csü.", "Pé.", "Szo."]
+          let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
           let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
           let channelDataFrame = channel.dataFrames.find( frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
 
@@ -395,7 +395,7 @@ async function trendingProcessor(props) {
         for(let x = 0; x <= frameCountCalculated; x++) {
 
           let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let days = ["Va.", "Hé.", "Ke.", "Sze.", "Csü.", "Pé.", "Szo."]
+          let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
           let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
           let dataFrameMatch = trendingDataFromMongo.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
 
@@ -439,32 +439,12 @@ async function trendingDataFramesProcessing(props) {
   return await trendingProcessor({ trendingDataFromMongo, dataFramesFrom, dataFramesTo, frameDistance })
 }
 
-channelsToAdd = [
-  "https://www.youtube.com/channel/UCGoLa-QhHmTxLEdjv_8dxrg",
-  "https://www.youtube.com/channel/UC6Cvo-tOSuHGlILWlnBL2vA",
-  "https://www.youtube.com/channel/UCeAB8_SpJPf-xLP4VqHk6TQ",
-  "https://www.youtube.com/channel/UCKLkW1hXwv9603DsBw-s_vA",
-  "https://www.youtube.com/channel/UCr8KinYuK1P903mOG_1qujg", 
-  "https://www.youtube.com/channel/UC59r0LCCC1aoqNisdj-RE1w", 
-  "https://www.youtube.com/channel/UC5Q1f1LK263xioqRjXEY8Lg" , 
-  "https://www.youtube.com/channel/UC_qjsyBmS4sViRMMERAxl2g", 
-  "https://www.youtube.com/channel/UCE7oC2iKBoXEoN2K96cjXyg", 
-  "https://www.youtube.com/channel/UCbgbVUSZ2I6fAAHiWxfZoOQ", 
-  "https://www.youtube.com/channel/UC7LxLbV1DLE2gSuVDfDOsIA", 
-  "https://www.youtube.com/channel/UC4omgFhwkAKzdrYH2dyJNvQ", 
-  "https://www.youtube.com/channel/UC_fwxj011v4ZCDKcV8U4rTw", 
-  "https://www.youtube.com/channel/UCgP9ETA61mi7UwMbbkVsCSQ", 
-  "https://www.youtube.com/channel/UCXpszjVK17Wf7jf4zLz5Nnw", 
-  "https://www.youtube.com/channel/UC2I3zxy4XGqSDkJfQI0whyQ", 
-  "https://www.youtube.com/channel/UCoXnnnrdhaKljuhA2IrIhVQ", 
-  "https://www.youtube.com/channel/UCrFqWhglNIdjciMNNB9IW5w", 
-  "https://www.youtube.com/channel/UCEz9c3Qv7mnZcjP4s2_WpMw", 
-  "https://www.youtube.com/channel/UCDobqE_rsI0Xq2cg-Sy6CWg", 
-  "https://www.youtube.com/channel/UCMEMunO_gYjW7FQhgAiHRhw", 
-  "https://www.youtube.com/channel/UCipg-1LCecIfx8RfWnafG4Q", 
-  "https://www.youtube.com/channel/UCRJovKcgUL7QumDE1YsLqzg",
-  "https://www.youtube.com/channel/UCVoGCDIv8h3OkzZYySWK6lw"
-]
+
+
+
+// channelsToAdd = [
+//   ""  
+// ]
 
 // addingChannels(channelsToAdd).then(channelsAdded => {
 
@@ -492,10 +472,10 @@ channelsToAdd = [
 // }
 // indicator could be: viewCount, likeCount, dislikeCount, commentCount
 // videoDataFramesProcessing({
-//   indicator: "likeCount",
+//   indicator: "commentCount",
 //   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
-//   dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"),
-//   dataFramesTo: new Date("2020-04-14T16:00:30.000+0100"),
+//   dataFramesFrom: new Date("2020-04-16T00:00:00.000+0100"),
+//   dataFramesTo: new Date("2020-04-22T16:00:30.000+0100"),
 //   frameDistance: 60 * 60 * 1000,
 //   modify: [
     
@@ -519,33 +499,33 @@ channelsToAdd = [
 //   }
 // }
 // indicator could be: viewCount, subscribersCount, videoCount
-channelDataFramesProcessing({
-  indicator: "viewCount",
-  dataFramesFrom: new Date("2020-04-06T00:00:00.000+0100"), 
-  dataFramesTo: new Date("2020-04-14T16:00:30.000+0100"), 
-  frameDistance: 60 * 60 * 1000,
-  modify: [
+// channelDataFramesProcessing({
+//   indicator: "viewCount",
+//   dataFramesFrom: new Date("2020-04-16T00:00:00.000+0100"),
+//   dataFramesTo: new Date("2020-04-22T16:00:30.000+0100"), 
+//   frameDistance: 60 * 60 * 1000,
+//   modify: [
     
-  ]
-}).then( res => {
-  let fileName = "increaseChannel.json"
-  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
-    if(err) throw err
-    console.log(fileName + ", Saved!")
-  })  
-})
-
-// ************************************************************************************************
-// trendingDataFramesProcessing(
-//   {
-//     dataFramesFrom: new Date("2020-04-08T00:00:00.000+0100"),
-//     dataFramesTo: new Date("2020-04-14T11:31:00.000+0100"),
-//     frameDistance: 30 * 60 * 1000
-//   }
-// ).then( res => {
-//   let fileName = "trendingVideos.json"
+//   ]
+// }).then( res => {
+//   let fileName = "increaseChannel.json"
 //   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
 //     if(err) throw err
 //     console.log(fileName + ", Saved!")
-//   })
+//   })  
 // })
+
+// ************************************************************************************************
+trendingDataFramesProcessing(
+  {
+    dataFramesFrom: new Date("2020-04-15T00:00:00.000+0100"),
+    dataFramesTo: new Date("2020-04-23T16:00:30.000+0100"),
+    frameDistance: 30 * 60 * 1000
+  }
+).then( res => {
+  let fileName = "trendingVideos.json"
+  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
+    if(err) throw err
+    console.log(fileName + ", Saved!")
+  })
+})
