@@ -18,12 +18,15 @@ async function trendingDataFramesRequest(props) {
 async function videosWithDataFrames(props) {
   return new Promise( (resolve, reject) => {
 
+    let channelIds = props.channelIds.length ? { channelId: { $in: props.channelIds}} : {}
+
     videos.aggregate([
       { $match: 
           {
               $and: [
                   { status: 'on' },
-                  { releaseDate: { $gt: props.videosFrom,$lt: props.videosTo }}
+                  { releaseDate: { $gt: props.videosFrom,$lt: props.videosTo }},
+                  { ...channelIds }
               ]
           }
       },
@@ -292,10 +295,10 @@ async function videoIncreaseProcessor(props) {
 }
 
 async function videoDataFramesProcessing(props) {
-  let { indicator, videosFromPreviousTime, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
+  let { indicator, videosFromPreviousTime, dataFramesFrom, dataFramesTo, frameDistance, channelIds, modify } = props
   let videosFrom = new Date(dataFramesFrom.getTime() - videosFromPreviousTime)
   let videosTo = dataFramesTo
-  let videosFromMongo = await videosWithDataFrames({ videosFrom, videosTo, dataFramesFrom, dataFramesTo })
+  let videosFromMongo = await videosWithDataFrames({ videosFrom, videosTo, dataFramesFrom, dataFramesTo, channelIds })
   
   return await videoIncreaseProcessor({ videosFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify })
 }
@@ -471,22 +474,23 @@ async function trendingDataFramesProcessing(props) {
 //   }
 // }
 // indicator could be: viewCount, likeCount, dislikeCount, commentCount
-videoDataFramesProcessing({
-  indicator: "commentCount",
-  videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
-  dataFramesFrom: new Date("2020-04-05T00:00:00.000+0100"),
-  dataFramesTo: new Date("2020-04-24T00:00:30.000+0100"),
-  frameDistance: 60 * 60 * 1000,
-  modify: [
+// videoDataFramesProcessing({
+//   indicator: "likeCount",
+//   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
+//   dataFramesFrom: new Date("2020-04-10T00:00:00.000+0100"),
+//   dataFramesTo: new Date("2020-05-10T00:00:30.000+0100"),
+//   frameDistance: 60 * 60 * 1000,
+//   channelIds: [],
+//   modify: [
     
-  ]
-}).then( res => {
-  let fileName = "increaseVideo.json"
-  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
-    if(err) throw err
-    console.log(fileName + ", Saved!")
-  })
-})
+//   ]
+// }).then( res => {
+//   let fileName = "increaseVideo.json"
+//   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
+//     if(err) throw err
+//     console.log(fileName + ", Saved!")
+//   })
+// })
 
 // ************************************************************************************************
 // To modify a video frames output, create a modify object with the fields that you want to modify.
@@ -516,16 +520,16 @@ videoDataFramesProcessing({
 // })
 
 // ************************************************************************************************
-// trendingDataFramesProcessing(
-//   {
-//     dataFramesFrom: new Date("2020-04-15T00:00:00.000+0100"),
-//     dataFramesTo: new Date("2020-04-23T16:00:30.000+0100"),
-//     frameDistance: 30 * 60 * 1000
-//   }
-// ).then( res => {
-//   let fileName = "trendingVideos.json"
-//   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
-//     if(err) throw err
-//     console.log(fileName + ", Saved!")
-//   })
-// })
+trendingDataFramesProcessing(
+  {
+    dataFramesFrom: new Date("2020-04-10T00:00:00.000+0100"),
+    dataFramesTo: new Date("2020-05-14T16:00:30.000+0100"),
+    frameDistance: 24 * 60 * 60 * 1000
+  }
+).then( res => {
+  let fileName = "trendingVideos.json"
+  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
+    if(err) throw err
+    console.log(fileName + ", Saved!")
+  })
+})
