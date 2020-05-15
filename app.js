@@ -277,8 +277,10 @@ async function videoIncreaseProcessor(props) {
         let videoNameMaxLength = 50
         let videoModifier = modify.find( modifyElement => modifyElement.videoId == video.videoId)
         let toModify = (videoModifier) ? videoModifier.toModify : {}
-        if(toModify.VideoName && toModify.VideoName.length > videoNameMaxLength) {
-          toModify.VideoName = (toModify.VideoName.slice(0, videoNameMaxLength).trim()+"...").toUpperCase()
+        if(toModify.VideoName) {
+          toModify.VideoName = toModify.VideoName.toUpperCase()
+          if(toModify.VideoName.length > videoNameMaxLength)
+            toModify.VideoName = toModify.VideoName.slice(0, videoNameMaxLength).trim()+"..."
         }
 
         return {
@@ -466,9 +468,9 @@ async function trendingDataFramesProcessing(props) {
 // ************************************************************************************************
 // To modify a video frames output, create a modify object with the fields that you want to modify.
 // {
-//   videoId: "AzLij636Mss",
+//   videoId: "K4wkIYswAg8",
 //   toModify: {
-//     VideoName: "foo",
+//     VideoName: "unfield: csalo",
 //     Thumbnail: "http://image.com/image.png",
 //     Remove: true
 //   }
@@ -478,11 +480,11 @@ videoDataFramesProcessing({
   indicator: "viewCount",
   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
   dataFramesFrom: new Date("2020-05-10T00:00:00.000+0100"),
-  dataFramesTo: new Date("2020-05-15T00:00:30.000+0100"),
+  dataFramesTo: new Date("2020-05-11T00:00:30.000+0100"),
   frameDistance: 60 * 60 * 1000,
   channelIds: [],
   modify: [
-    
+
   ]
 }).then( res => {
   let fileName = "increaseVideo.json"
