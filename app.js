@@ -273,12 +273,12 @@ async function videoIncreaseProcessor(props) {
           }
         }
 
-        let videoName = video.channelInfo[0].channelName + ": " + video.videoName
+        let videoName = (video.channelInfo[0].channelName + ": " + video.videoName).toUpperCase()
         let videoNameMaxLength = 50
         let videoModifier = modify.find( modifyElement => modifyElement.videoId == video.videoId)
         let toModify = (videoModifier) ? videoModifier.toModify : {}
         if(toModify.VideoName && toModify.VideoName.length > videoNameMaxLength) {
-          toModify.VideoName = toModify.VideoName.slice(0, videoNameMaxLength).trim()+"..."
+          toModify.VideoName = (toModify.VideoName.slice(0, videoNameMaxLength).trim()+"...").toUpperCase()
         }
 
         return {
@@ -474,23 +474,23 @@ async function trendingDataFramesProcessing(props) {
 //   }
 // }
 // indicator could be: viewCount, likeCount, dislikeCount, commentCount
-// videoDataFramesProcessing({
-//   indicator: "likeCount",
-//   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
-//   dataFramesFrom: new Date("2020-04-10T00:00:00.000+0100"),
-//   dataFramesTo: new Date("2020-05-10T00:00:30.000+0100"),
-//   frameDistance: 60 * 60 * 1000,
-//   channelIds: [],
-//   modify: [
+videoDataFramesProcessing({
+  indicator: "viewCount",
+  videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
+  dataFramesFrom: new Date("2020-05-10T00:00:00.000+0100"),
+  dataFramesTo: new Date("2020-05-15T00:00:30.000+0100"),
+  frameDistance: 60 * 60 * 1000,
+  channelIds: [],
+  modify: [
     
-//   ]
-// }).then( res => {
-//   let fileName = "increaseVideo.json"
-//   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
-//     if(err) throw err
-//     console.log(fileName + ", Saved!")
-//   })
-// })
+  ]
+}).then( res => {
+  let fileName = "increaseVideo.json"
+  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
+    if(err) throw err
+    console.log(fileName + ", Saved!")
+  })
+})
 
 // ************************************************************************************************
 // To modify a video frames output, create a modify object with the fields that you want to modify.
@@ -520,16 +520,16 @@ async function trendingDataFramesProcessing(props) {
 // })
 
 // ************************************************************************************************
-trendingDataFramesProcessing(
-  {
-    dataFramesFrom: new Date("2020-04-10T00:00:00.000+0100"),
-    dataFramesTo: new Date("2020-05-14T16:00:30.000+0100"),
-    frameDistance: 24 * 60 * 60 * 1000
-  }
-).then( res => {
-  let fileName = "trendingVideos.json"
-  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
-    if(err) throw err
-    console.log(fileName + ", Saved!")
-  })
-})
+// trendingDataFramesProcessing(
+//   {
+//     dataFramesFrom: new Date("2020-04-10T00:00:00.000+0100"),
+//     dataFramesTo: new Date("2020-05-14T16:00:30.000+0100"),
+//     frameDistance: 24 * 60 * 60 * 1000
+//   }
+// ).then( res => {
+//   let fileName = "trendingVideos.json"
+//   fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
+//     if(err) throw err
+//     console.log(fileName + ", Saved!")
+//   })
+// })
