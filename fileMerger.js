@@ -9,6 +9,7 @@ while (nextFile) {
     if (fs.existsSync(path)) {
         let videosDataFromFile = JSON.parse(fs.readFileSync(path))
         videosData = videosData.concat(videosDataFromFile)
+        fs.unlinkSync(path)
         nextFileNumber++
     } else {
         nextFile = false

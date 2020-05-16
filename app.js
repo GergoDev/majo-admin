@@ -7,93 +7,107 @@ const dotenv = require('dotenv')
 dotenv.config()
 
 async function trendingDataFramesRequest(props) {
-  return await trendingDataFrames.find({ 
-    dataFrameDate: { 
-        $gt: props.dataFramesFrom,
-        $lt: props.dataFramesTo
+  return await trendingDataFrames.find({
+    dataFrameDate: {
+      $gt: props.dataFramesFrom,
+      $lt: props.dataFramesTo
     }
   }).toArray()
 }
 
 async function videosWithDataFrames(props) {
-  return new Promise( (resolve, reject) => {
+  return new Promise((resolve, reject) => {
 
-    let channelIds = props.channelIds.length ? { channelId: { $in: props.channelIds}} : {}
+    let channelIds = props.channelIds.length ? { channelId: { $in: props.channelIds } } : {}
+    let perReq = 200
+    let requestPagination = props.reqPagination ? [{ $skip: (props.reqPagination * perReq) - perReq }, { $limit: perReq }] : []
 
     videos.aggregate([
-      { $match: 
-          {
-              $and: [
-                  { status: 'on' },
-                  { releaseDate: { $gt: props.videosFrom,$lt: props.videosTo }},
-                  { ...channelIds }
-              ]
-          }
+      {
+        $match:
+        {
+          $and: [
+            { status: 'on' },
+            { releaseDate: { $gt: props.videosFrom, $lt: props.videosTo } },
+            { ...channelIds }
+          ]
+        }
       },
-      { $lookup: 
-          {
-              from: "videoDataFrames",
-              let: { videoId: "$videoId"},
-              pipeline: [
-                   { $match:
-                       { $expr:
-                           { $and:
-                               [
-                                  { $eq: ["$videoId", "$$videoId" ] },
-                                  { $gte: ["$dataFrameDate", props.dataFramesFrom ] },
-                                  { $lte: ["$dataFrameDate", props.dataFramesTo ] }
-                               ]
-                           }
-                       }
-                   },
-                   { $sort: { dataFrameDate: 1 } }
-               ],
-               as: "videoDataFrames"
-          }
+      ...requestPagination,
+      {
+        $lookup:
+        {
+          from: "videoDataFrames",
+          let: { videoId: "$videoId" },
+          pipeline: [
+            {
+              $match:
+              {
+                $expr:
+                {
+                  $and:
+                    [
+                      { $eq: ["$videoId", "$$videoId"] },
+                      { $gte: ["$dataFrameDate", props.dataFramesFrom] },
+                      { $lte: ["$dataFrameDate", props.dataFramesTo] }
+                    ]
+                }
+              }
+            },
+            { $sort: { dataFrameDate: 1 } }
+          ],
+          as: "videoDataFrames"
+        }
       },
-      {$lookup: 
-          {
-              from: "channels",
-              localField: "channelId",
-              foreignField: "channelId",
-              as: "channelInfo"
-          }
+      {
+        $lookup:
+        {
+          from: "channels",
+          localField: "channelId",
+          foreignField: "channelId",
+          as: "channelInfo"
+        }
       }
-    ]).toArray( (err, res) => resolve(res) )
+    ]).toArray((err, res) => resolve(res))
 
   })
 }
 
 async function channelsWithDataFrames(props) {
   return await channels.aggregate([
-    { $match: 
-        {
-            $and: [
-                { status: 'on' },
-                { addedDate: { $lt: props.dataFramesFrom }}
-            ]
-        }
+    {
+      $match:
+      {
+        $and: [
+          { status: 'on' },
+          { addedDate: { $lt: props.dataFramesFrom } }
+        ]
+      }
     },
-    { $lookup: 
-        {
-            from: "channelDataFrames",
-            let: { channelId: "$channelId"},
-            pipeline: [
-                { $match:
-                    { $expr:
-                        { $and:
-                            [
-                                { $eq: ["$channelId", "$$channelId"] },
-                                { $gte: ["$dataFrameDate", props.dataFramesFrom ] },
-                                { $lte: ["$dataFrameDate", props.dataFramesTo ] }
-                            ]
-                        }
-                    }
-                },
-                { $sort: { dataFrameDate: 1 } }
-            ],
-            as: "dataFrames"
-        }
+    {
+      $lookup:
+      {
+        from: "channelDataFrames",
+        let: { channelId: "$channelId" },
+        pipeline: [
+          {
+            $match:
+            {
+              $expr:
+              {
+                $and:
+                  [
+                    { $eq: ["$channelId", "$$channelId"] },
+                    { $gte: ["$dataFrameDate", props.dataFramesFrom] },
+                    { $lte: ["$dataFrameDate", props.dataFramesTo] }
+                  ]
+              }
+            }
+          },
+          { $sort: { dataFrameDate: 1 } }
+        ],
+        as: "dataFrames"
+      }
     }
   ]).toArray()
 }
@@ -134,7 +148,7 @@ function channelActivityRequest(channelId, fromDate) {
         part: "snippet,contentDetails",
         channelId: channelId,
         publishedAfter: fromDate,
-        maxResults:50,
+        maxResults: 50,
         key: process.env.YOUTUBEAPIKEY
       }
     }).then(function (response) {
@@ -165,7 +179,7 @@ async function addingChannelVideos(channelId, fromDate, channelName) {
       )
     })
 
-  if(videosToDatabase.length != 0) {
+  if (videosToDatabase.length != 0) {
     let insertResult = await videos.insertMany(videosToDatabase)
     console.log(channelName, insertResult.insertedCount, "videos added")
     insertResult.ops.forEach(addedVideo => console.log("   ", addedVideo.videoName))
@@ -208,7 +222,7 @@ async function addingChannels(channelList) {
 
   // Check for duplications in channel list and take out duplicated ones.
   let channelIds = channelsDataToDatabase.map(c => c.channelId)
-  channelsDataToDatabase = channelsDataToDatabase.filter( (channel, index) => channelIds.indexOf(channel.channelId) == index )
+  channelsDataToDatabase = channelsDataToDatabase.filter((channel, index) => channelIds.indexOf(channel.channelId) == index)
 
   // Check if the channels already exist in database and take out existed ones.
   let existedChannels = await channels.find({ channelId: { $in: channelIds } }).toArray()
@@ -232,7 +246,7 @@ async function addingChannels(channelList) {
 
 async function videoIncreaseProcessor(props) {
 
-  let { videosFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props  
+  let { videosFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
 
   let n = n => n > 9 ? "" + n : "0" + n
 
@@ -243,71 +257,78 @@ async function videoIncreaseProcessor(props) {
     return date.getTime()
   }
 
-  let framesForVideosCalculated = videosFromMongo.map( video => {
+  let framesForVideosCalculated = videosFromMongo.map(video => {
 
-    if(video.videoDataFrames.length != 0) {
+    if (video.videoDataFrames.length != 0) {
 
-        let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
-        let framesProcessed = {}
-        let firstValueCount = 0
-        let firstValueFound = false
+      let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
+      let framesProcessed = {}
+      let firstValueCount = 0
+      let firstValueFound = false
 
-        for(let x = 0; x <= frameCountCalculated; x++) {
+      for (let x = 0; x <= frameCountCalculated; x++) {
 
-          let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
-          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
-          let videoDataFrame = video.videoDataFrames.find( frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
-          let releaseDateMatch = tillHoursMillisecs(video.releaseDate) == tillHoursMillisecs(actualFrameDate)
+        let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
+        let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
+        let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth() + 1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
+        let videoDataFrame = video.videoDataFrames.find(frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
+        let releaseDateMatch = tillHoursMillisecs(video.releaseDate) == tillHoursMillisecs(actualFrameDate)
 
-          if(videoDataFrame || releaseDateMatch) {
-            if(firstValueFound) {
-              framesProcessed[frameDateStyled] = videoDataFrame[indicator] - firstValueCount
-            } else {
-              framesProcessed[frameDateStyled] = 0
-              firstValueCount = (releaseDateMatch) ? 0 : videoDataFrame[indicator]
-              firstValueFound = true
-            }
+        if (videoDataFrame || releaseDateMatch) {
+          if (firstValueFound) {
+            framesProcessed[frameDateStyled] = videoDataFrame[indicator] - firstValueCount
           } else {
-            framesProcessed[frameDateStyled] = ""
+            framesProcessed[frameDateStyled] = 0
+            firstValueCount = (releaseDateMatch) ? 0 : videoDataFrame[indicator]
+            firstValueFound = true
           }
+        } else {
+          framesProcessed[frameDateStyled] = ""
         }
+      }
 
-        let videoName = (video.channelInfo[0].channelName + ": " + video.videoName).toUpperCase()
-        let videoNameMaxLength = 50
-        let videoModifier = modify.find( modifyElement => modifyElement.videoId == video.videoId)
-        let toModify = (videoModifier) ? videoModifier.toModify : {}
-        if(toModify.VideoName) {
-          toModify.VideoName = toModify.VideoName.toUpperCase()
-          if(toModify.VideoName.length > videoNameMaxLength)
-            toModify.VideoName = toModify.VideoName.slice(0, videoNameMaxLength).trim()+"..."
-        }
+      let videoName = (video.channelInfo[0].channelName + ": " + video.videoName).toUpperCase()
+      let videoNameMaxLength = 50
+      let videoModifier = modify.find(modifyElement => modifyElement.videoId == video.videoId)
+      let toModify = (videoModifier) ? videoModifier.toModify : {}
+      if (toModify.VideoName) {
+        toModify.VideoName = toModify.VideoName.toUpperCase()
+        if (toModify.VideoName.length > videoNameMaxLength)
+          toModify.VideoName = toModify.VideoName.slice(0, videoNameMaxLength).trim() + "..."
+      }
 
-        return {
-          VideoName: (videoName.length > videoNameMaxLength) ? videoName.slice(0, videoNameMaxLength).trim()+"..." : videoName,
-          VideoId: video.videoId, 
-          Thumbnail: video.coverPic, 
-          ...framesProcessed,
-          ...toModify
-        }
+      return {
+        VideoName: (videoName.length > videoNameMaxLength) ? videoName.slice(0, videoNameMaxLength).trim() + "..." : videoName,
+        VideoId: video.videoId,
+        Thumbnail: video.coverPic,
+        ...framesProcessed,
+        ...toModify
+      }
     }
   })
-  
-  return framesForVideosCalculated.filter( f => f && !f.Remove )
+
+  return framesForVideosCalculated.filter(f => f && !f.Remove)
 }
 
 async function videoDataFramesProcessing(props) {
-  let { indicator, videosFromPreviousTime, dataFramesFrom, dataFramesTo, frameDistance, channelIds, modify } = props
+  let { indicator, videosFromPreviousTime, dataFramesFrom, dataFramesTo, frameDistance, channelIds, reqPagination, modify } = props
   let videosFrom = new Date(dataFramesFrom.getTime() - videosFromPreviousTime)
   let videosTo = dataFramesTo
-  let videosFromMongo = await videosWithDataFrames({ videosFrom, videosTo, dataFramesFrom, dataFramesTo, channelIds })
-  
-  return await videoIncreaseProcessor({ videosFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify })
+  console.time('  database Request')
+  let videosFromMongo = await videosWithDataFrames({ videosFrom, videosTo, dataFramesFrom, dataFramesTo, channelIds, reqPagination })
+  console.log('#', reqPagination, 'Videos:', videosFromMongo.length)
+  console.timeEnd('  database Request')
+
+  console.time('  dataFrame Processing')
+  let videoDataFramesProcessed = await videoIncreaseProcessor({ videosFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify })
+  console.timeEnd('  dataFrame Processing')
+
+  return { reqPagination, videoDataFramesProcessed }
 }
 
 async function channelIncreaseProcessor(props) {
 
-  let { channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props  
+  let { channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
 
   let n = n => n > 9 ? "" + n : "0" + n
 
@@ -318,66 +339,66 @@ async function channelIncreaseProcessor(props) {
     return date.getTime()
   }
 
-  let framesForChannelsCalculated = channelsFromMongo.map( channel => {
+  let framesForChannelsCalculated = channelsFromMongo.map(channel => {
 
-    if(channel.dataFrames.length != 0) {
+    if (channel.dataFrames.length != 0) {
 
-        let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
-        let framesProcessed = {}
-        let firstValueCount = 0
-        let firstValueFound = false
+      let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
+      let framesProcessed = {}
+      let firstValueCount = 0
+      let firstValueFound = false
 
-        for(let x = 0; x <= frameCountCalculated; x++) {
+      for (let x = 0; x <= frameCountCalculated; x++) {
 
-          let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
-          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
-          let channelDataFrame = channel.dataFrames.find( frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
+        let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
+        let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
+        let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth() + 1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
+        let channelDataFrame = channel.dataFrames.find(frame => tillHoursMillisecs(frame.dataFrameDate) == tillHoursMillisecs(actualFrameDate))
 
-          if(channelDataFrame) {
-            if(firstValueFound) {
-              framesProcessed[frameDateStyled] = channelDataFrame[indicator] - firstValueCount
-            } else {
-              framesProcessed[frameDateStyled] = 0
-              firstValueCount = channelDataFrame[indicator]
-              firstValueFound = true
-            }
+        if (channelDataFrame) {
+          if (firstValueFound) {
+            framesProcessed[frameDateStyled] = channelDataFrame[indicator] - firstValueCount
           } else {
-            framesProcessed[frameDateStyled] = ""
+            framesProcessed[frameDateStyled] = 0
+            firstValueCount = channelDataFrame[indicator]
+            firstValueFound = true
           }
+        } else {
+          framesProcessed[frameDateStyled] = ""
         }
+      }
 
-        let channelName = channel.channelName
-        let channelNameMaxLength = 30
-        let channelModifier = modify.find( modifyElement => modifyElement.channelId == channel.channelId)
-        let toModify = (channelModifier) ? channelModifier.toModify : {}
-        if(toModify.ChannelName && toModify.ChannelName.length > channelNameMaxLength) {
-          toModify.ChannelName = toModify.ChannelName.slice(0, channelNameMaxLength).trim()+"..."
-        }
+      let channelName = channel.channelName
+      let channelNameMaxLength = 30
+      let channelModifier = modify.find(modifyElement => modifyElement.channelId == channel.channelId)
+      let toModify = (channelModifier) ? channelModifier.toModify : {}
+      if (toModify.ChannelName && toModify.ChannelName.length > channelNameMaxLength) {
+        toModify.ChannelName = toModify.ChannelName.slice(0, channelNameMaxLength).trim() + "..."
+      }
 
-        return {
-          ChannelName: (channelName.length > channelNameMaxLength) ? channelName.slice(0, channelNameMaxLength).trim()+"..." : channelName,
-          ChannelId: channel.channelId, 
-          ProfilePic: channel.profilePic, 
-          ...framesProcessed,
-          ...toModify
-        }
+      return {
+        ChannelName: (channelName.length > channelNameMaxLength) ? channelName.slice(0, channelNameMaxLength).trim() + "..." : channelName,
+        ChannelId: channel.channelId,
+        ProfilePic: channel.profilePic,
+        ...framesProcessed,
+        ...toModify
+      }
     }
   })
-  
-  return framesForChannelsCalculated.filter( f => f && !f.Remove )
+
+  return framesForChannelsCalculated.filter(f => f && !f.Remove)
 }
 
 async function channelDataFramesProcessing(props) {
   let { indicator, dataFramesFrom, dataFramesTo, frameDistance, modify } = props
-  let channelsFromMongo = await channelsWithDataFrames({ dataFramesFrom, dataFramesTo})
+  let channelsFromMongo = await channelsWithDataFrames({ dataFramesFrom, dataFramesTo })
 
   return await channelIncreaseProcessor({ channelsFromMongo, indicator, dataFramesFrom, dataFramesTo, frameDistance, modify })
 }
 
 async function trendingProcessor(props) {
 
-  let { trendingDataFromMongo, dataFramesFrom, dataFramesTo, frameDistance } = props  
+  let { trendingDataFromMongo, dataFramesFrom, dataFramesTo, frameDistance } = props
 
   let n = n => n > 9 ? "" + n : "0" + n
 
@@ -388,50 +409,50 @@ async function trendingProcessor(props) {
   }
 
   let notUniqueVideos = []
-  trendingDataFromMongo.forEach( trendingPack => trendingPack.rankedVideos.forEach( video => notUniqueVideos.push(video)))
-  let uniqueVideos = notUniqueVideos.filter( (video, index) => notUniqueVideos.findIndex( findVideo => video.videoId == findVideo.videoId) == index )
+  trendingDataFromMongo.forEach(trendingPack => trendingPack.rankedVideos.forEach(video => notUniqueVideos.push(video)))
+  let uniqueVideos = notUniqueVideos.filter((video, index) => notUniqueVideos.findIndex(findVideo => video.videoId == findVideo.videoId) == index)
 
-  let videoFramesCalculated = uniqueVideos.map( uniqueVideo => {
+  let videoFramesCalculated = uniqueVideos.map(uniqueVideo => {
 
-        let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
-        let framesProcessed = {}
-        let prevRank = 1000
+    let frameCountCalculated = Math.floor(((dataFramesTo - dataFramesFrom) / frameDistance))
+    let framesProcessed = {}
+    let prevRank = 1000
 
-        for(let x = 0; x <= frameCountCalculated; x++) {
+    for (let x = 0; x <= frameCountCalculated; x++) {
 
-          let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
-          let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
-          let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth()+1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
-          let dataFrameMatch = trendingDataFromMongo.find( frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
+      let actualFrameDate = new Date(dataFramesFrom.getTime() + (x * frameDistance))
+      let days = ["va.", "hé.", "ke.", "sze.", "csü.", "pé.", "szo."]
+      let frameDateStyled = `${actualFrameDate.getFullYear()}-${n(actualFrameDate.getMonth() + 1)}-${n(actualFrameDate.getDate())} ${days[actualFrameDate.getDay()]} ${n(actualFrameDate.getHours())}:${n(actualFrameDate.getMinutes())}`
+      let dataFrameMatch = trendingDataFromMongo.find(frame => tillMinutesMillisecs(frame.dataFrameDate) == tillMinutesMillisecs(actualFrameDate))
 
-          if(dataFrameMatch) {
+      if (dataFrameMatch) {
 
-            let videoRank = dataFrameMatch.rankedVideos.findIndex( video => video.videoId == uniqueVideo.videoId)
+        let videoRank = dataFrameMatch.rankedVideos.findIndex(video => video.videoId == uniqueVideo.videoId)
 
-            if(videoRank != -1) {
-              videoRank = 100 + (videoRank * 2)
-              framesProcessed[frameDateStyled] = videoRank
-              prevRank = videoRank
-            } else {
-              framesProcessed[frameDateStyled] = 1000
-            }
-
-          } else {
-            framesProcessed[frameDateStyled] = prevRank
-          }
-          
+        if (videoRank != -1) {
+          videoRank = 100 + (videoRank * 2)
+          framesProcessed[frameDateStyled] = videoRank
+          prevRank = videoRank
+        } else {
+          framesProcessed[frameDateStyled] = 1000
         }
 
-        let videoName = uniqueVideo.videoName
-        let videoNameMaxLength = 78
+      } else {
+        framesProcessed[frameDateStyled] = prevRank
+      }
 
-        return {
-          VideoName: (videoName.length > videoNameMaxLength) ? videoName.slice(0, videoNameMaxLength).trim()+"..." : videoName,
-          videoId: uniqueVideo.videoId, 
-          ProfilePic: uniqueVideo.coverPic, 
-          ...framesProcessed,        
-        }
-    
+    }
+
+    let videoName = uniqueVideo.videoName
+    let videoNameMaxLength = 78
+
+    return {
+      VideoName: (videoName.length > videoNameMaxLength) ? videoName.slice(0, videoNameMaxLength).trim() + "..." : videoName,
+      videoId: uniqueVideo.videoId,
+      ProfilePic: uniqueVideo.coverPic,
+      ...framesProcessed,
+    }
+
   })
   return videoFramesCalculated
 }
@@ -477,19 +498,20 @@ async function trendingDataFramesProcessing(props) {
 // }
 // indicator could be: viewCount, likeCount, dislikeCount, commentCount
 videoDataFramesProcessing({
-  indicator: "viewCount",
+  indicator: "commentCount",
   videosFromPreviousTime: 7 * 24 * 60 * 60 * 1000,
-  dataFramesFrom: new Date("2020-05-10T00:00:00.000+0100"),
-  dataFramesTo: new Date("2020-05-11T00:00:30.000+0100"),
+  dataFramesFrom: new Date("2020-04-15T00:00:00.000+0100"),
+  dataFramesTo: new Date("2020-05-16T00:00:30.000+0100"),
   frameDistance: 60 * 60 * 1000,
   channelIds: [],
+  reqPagination: 8,
   modify: [
 
   ]
-}).then( res => {
-  let fileName = "increaseVideo.json"
-  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res), err => {
-    if(err) throw err
+}).then(res => {
+  let fileName = res.reqPagination ? `#${res.reqPagination}increaseVideo.json` : 'increaseVideo.json'
+  fs.writeFile("framesProcessed/" + fileName, JSON.stringify(res.videoDataFramesProcessed), err => {
+    if (err) throw err
     console.log(fileName + ", Saved!")
   })
 })
@@ -511,7 +533,7 @@ videoDataFramesProcessing({
 //   dataFramesTo: new Date("2020-04-22T16:00:30.000+0100"), 
 //   frameDistance: 60 * 60 * 1000,
 //   modify: [
-    
+
 //   ]
 // }).then( res => {
 //   let fileName = "increaseChannel.json"
